@@ -5,6 +5,9 @@ from bs4 import BeautifulSoup
 import time
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo 
+import pytz
+cst = pytz.timezone('America/Chicago')
 
 DICE_URL = "https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS%7CTHIRD_PARTY&countryCode=US&latitude=38.7945952&location=United+States&locationPrecision=Country&longitude=-106.5348379&q=Golang"
 TELEGRAM_BOT_TOKEN = "8503178182:AAG2euQgRP2DkaDDPD_rrM9tLyZynshtHn8"
@@ -158,7 +161,7 @@ def send_telegram_message(message, max_retries=3):
     return False
 
 def end_msg_jobs_telegram(new_job_count):
-    now = datetime.now().strftime("%B %d, %Y -- %I:%M %p")
+    now = datetime.now(cst).strftime("%B %d, %Y -- %I:%M %p CST")
     if new_job_count >0:
         message = f"""
                 ╔═════════════════════════════════════════════╗
