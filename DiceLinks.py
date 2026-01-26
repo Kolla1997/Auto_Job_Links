@@ -121,34 +121,72 @@ def flt_exsis_links(df_scraped):
     logging.info(f"Found {len(df_new)} new jobs out of {len(df_scraped)} scraped jobs")
     return df_new, df_existing
 
-def end_msg_jobs_telegram(new_job_count):
-    now = datetime.now().strftime("%B %d, %Y -- %I:%M %p")
-    separator = "-" * 55
+def send_telegram_message(message, max_retries=3):
+    """Send message to Telegram with retry logic for rate limiting"""
     payload = {
         "chat_id": CHAT_ID,
-        "text": f"""
-            ╔═════════════════════════════════════════════╗
-            ║   DICE SCRAPER COMPLETED ✅                 ║
-            ╠═════════════════════════════════════════════╣
-            ║ ⏰ {now}                                    ║
-            ║ 🆕 New Jobs: {str(new_job_count)}           ║
-            ║ 📊 Status: SUCCESS                          ║
-            ╚═════════════════════════════════════════════╝
-                """,
+        "text": message,
         "parse_mode": "Markdown"
     }
-    try:
-        response = requests.post(TELEGRAM_URL, json=payload)
-        if response.status_code == 200:
-            logging.info("Sent completion message to Telegram")
-        else:
-            logging.error(f"Failed to send completion message: {response.text}")
-    except Exception as e:
-        logging.error(f"Error sending completion message: {e}")
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(TELEGRAM_URL, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                return True
+            elif response.status_code == 429:
+                # Rate limit hit - extract retry_after time
+                try:
+                    error_data = response.json()
+                    retry_after = error_data.get('parameters', {}).get('retry_after', 30)
+                except:
+                    retry_after = 30
+                
+                logging.warning(f"Rate limit hit. Waiting {retry_after} seconds...")
+                time.sleep(retry_after + 1)  # Add 1 second buffer
+                continue
+            else:
+                logging.error(f"Failed to send message: {response.text}")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error sending to Telegram (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(5)
+    
+    return False
+
+def end_msg_jobs_telegram(new_job_count):
+    now = datetime.now().strftime("%B %d, %Y -- %I:%M %p")
+    if new_job_count >0:
+        message = f"""
+                ╔═════════════════════════════════════════════╗
+                ║   DICE SCRAPER COMPLETED ✅                 ║
+                ╠═════════════════════════════════════════════╣
+                ║ ⏰ {now}                                    ║
+                ║ 🆕 New Jobs: {str(new_job_count)}           ║
+                ║ 📊 Status: SUCCESS                          ║
+                ╚═════════════════════════════════════════════╝
+        """
+    else:
+        message = f"""
+                ╔═════════════════════════════════════════════╗
+                ║   DICE SCRAPER COMPLETED ✅                ║
+                ╠═════════════════════════════════════════════╣
+                ║ ⏰ {now}                                   ║
+                ║ 🆕 No new jobs found.                      ║
+                ╚═════════════════════════════════════════════╝
+        """
+    
+    if send_telegram_message(message):
+        logging.info("Sent completion message to Telegram")
+    else:
+        logging.error("Failed to send completion message after retries")
 
 
 def send_jobs_to_telegram(df):
-    for _, row in df.iterrows():
+    for idx, row in df.iterrows():
         message = (
             f"*{row['Title']}*\n"
             f"🏢 {row['Company'] or 'Unknown Company'}\n"
@@ -157,20 +195,14 @@ def send_jobs_to_telegram(df):
             f"💰 Salary: {row['Salary'] or 'N/A'}\n"
             f"🔗 [Apply here]({row['URL']})"
         )
-        payload = {
-            "chat_id": CHAT_ID,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
-        try:
-            response = requests.post(TELEGRAM_URL, json=payload)
-            if response.status_code == 200:
-                logging.info(f"Sent job to Telegram: {row['Title']}")
-            else:
-                logging.error(f"Failed to send job: {response.text}")
-            time.sleep(1)  # Avoid rate limits
-        except Exception as e:
-            logging.error(f"Error sending to Telegram: {e}")
+        
+        if send_telegram_message(message):
+            logging.info(f"Sent job {idx + 1}/{len(df)} to Telegram: {row['Title']}")
+        else:
+            logging.error(f"Failed to send job: {row['Title']}")
+        
+        # Wait between messages to respect rate limits
+        time.sleep(1)
 
 
 def main():
@@ -187,8 +219,11 @@ def main():
         return
     if save_to_excel(df_new, df_existing):
         print(f"💾 Successfully saved to {EXCEL_FILE}")
-    print(len(df_new))
+    print(f"📤 Sending {len(df_new)} new jobs to Telegram...")
     send_jobs_to_telegram(df_new)
+    
+    # Add extra delay before sending completion message
+    time.sleep(2)
     end_msg_jobs_telegram(len(df_new))
 
 
