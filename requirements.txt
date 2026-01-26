@@ -3,5 +3,4 @@ beautifulsoup4
 selenium
 pandas
 openpyxl
-ZoneInfo
 pytz
