@@ -9,6 +9,9 @@ jobs:
   run-script:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: write  # Allows workflow to push changes
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -25,3 +28,11 @@ jobs:
     
     - name: Run script
       run: python DiceLinks.py
+    
+    - name: Commit and push Excel file if changed
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add dice_jobs_list.xlsx
+        git diff --staged --quiet || git commit -m "Auto-update: dice_jobs_list.xlsx - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+        git push
