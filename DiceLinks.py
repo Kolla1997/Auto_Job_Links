@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import requests
 import logging
 import pandas as pd
@@ -194,16 +188,9 @@ def main():
     if save_to_excel(df_new, df_existing):
         print(f"💾 Successfully saved to {EXCEL_FILE}")
     print(len(df_new))
-    send_jobs_to_telegram(df_new.sample(2))
+    send_jobs_to_telegram(df_new)
     end_msg_jobs_telegram(len(df_new))
 
 
 if __name__ == "__main__":
     main()
-
-
-# In[ ]:
-
-
-
-
