@@ -210,6 +210,7 @@ def send_jobs_to_telegram(df):
 
 def main():
     df_scraped = fetch_all_links(DICE_URL)
+    df_scraped = df_scraped.drop_duplicates(subset=['URL'], keep='first')
 
     if df_scraped.empty:
         print("No jobs found during scraping.")
