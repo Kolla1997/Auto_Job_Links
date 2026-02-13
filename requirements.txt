@@ -1,8 +1,12 @@
-requests
-logging
-pandas
-beautifulsoup4
-scikit-learn
-pytz
-openpyxl
+# Change these lines:
+ipykernel>=6.0.0
+ipython>=8.12.0
+
+# Add/Ensure these are present for your code:
 python-docx
+pandas
+scikit-learn
+requests
+beautifulsoup4
+openpyxl
+pytz
