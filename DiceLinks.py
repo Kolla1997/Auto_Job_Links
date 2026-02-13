@@ -379,7 +379,7 @@ def main():
 
     if df_scraped.empty:
         print("No jobs found during scraping.")
-        # end_msg_jobs_telegram(0)
+        end_msg_jobs_telegram(0)
         return
     df_new_raw, df_existing = flt_exsis_links(df_scraped)
     df_new = df_new_raw.copy()
@@ -388,7 +388,8 @@ def main():
     df_new['Badges'] = None
 
     if df_new.empty:
-        # end_msg_jobs_telegram(0)
+        print("No jobs found during scraping.")
+        end_msg_jobs_telegram(0)
         return
     for index, row in df_new.iterrows():
         JD_data = fetch_job_details(row['URL'])
@@ -404,9 +405,9 @@ def main():
     if save_to_excel(df_new, df_existing):
         print(f"💾 Successfully saved to {EXCEL_FILE}")
     print(f"📤 Sending {len(df_new)} new jobs to Telegram...")
-    # send_jobs_to_telegram(df_new)
+    send_jobs_to_telegram(df_new)
     time.sleep(2)
-    # end_msg_jobs_telegram(len(df_new))
+    end_msg_jobs_telegram(len(df_new))
 
 if __name__ == "__main__":
     main()
