@@ -1,5 +1,8 @@
-requests==2.31.0
-beautifulsoup4==4.12.2
-pandas==2.2.0
-openpyxl==3.1.2
-pytz==2024.1
+requests
+logging
+pandas
+beautifulsoup4
+scikit-learn
+pytz
+openpyxl
+python-docx
