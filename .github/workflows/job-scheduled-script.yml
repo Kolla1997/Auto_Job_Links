@@ -2,7 +2,7 @@ name: Run Dice Job Links Script
 
 on:
   schedule:
-    - cron: '27 * * * *'  # Every hour
+    - cron: '27 * * * *'  
   workflow_dispatch:
 
 jobs:
