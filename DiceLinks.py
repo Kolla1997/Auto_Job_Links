@@ -14,7 +14,7 @@ import pytz
 cst = pytz.timezone('America/Chicago')
 
 DICE_URL = "https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS%7CTHIRD_PARTY&countryCode=US&latitude=38.7945952&location=United+States&locationPrecision=Country&longitude=-106.5348379&q=Golang"
-TELEGRAM_BOT_TOKEN = "8503178182:AAG2euQgRP2DkaDDPD_rrM9tLyZynshtHn8"
+TELEGRAM_BOT_TOKEN = "8637691669:AAHJftSMu1nBloFhvyuwU1SwycsvJJQKJ98"
 CHAT_ID = "-1003628736585"
 EXCEL_FILE = 'dice_jobs_list.xlsx'
 resume_path = "Dinesh_Go_Resume.docx" 
