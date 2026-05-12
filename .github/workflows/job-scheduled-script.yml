@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Python Script
         run: |
-          python dice_scraper.py
+          python DiceLinks.py
 
       - name: Commit and Push Changes
         run: |
