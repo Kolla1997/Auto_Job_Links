@@ -11,11 +11,39 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from zoneinfo import ZoneInfo 
 import pytz
+import base64
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 cst = pytz.timezone('America/Chicago')
 
+# ─────────────────────────────────────────────────────────────────
+# CONFIGURATION
+# ─────────────────────────────────────────────────────────────────
+RESUME_PATH   = "Dinesh_Go_Resume.docx"
+SENDER_NAME   = "Dinesh K"
+SENDER_PHONE  = "(315) 232-1317"
+SENDER_EMAIL  = "dineshkolla26@gmail.com"
+SENDER_CITY   = "Chicago, IL"
+
+# Gmail OAuth scopes
+SCOPES        = ["https://www.googleapis.com/auth/gmail.send"]
+TOKEN_FILE    = "token.json"          # saved after first login
+CREDS_FILE    = "credentials.json"   # downloaded from Google Cloud Console
+
 DICE_URL = "https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS%7CTHIRD_PARTY&countryCode=US&latitude=38.7945952&location=United+States&locationPrecision=Country&longitude=-106.5348379&q=Golang"
-TELEGRAM_BOT_TOKEN = "8637691669:AAHJftSMu1nBloFhvyuwU1SwycsvJJQKJ98"
-CHAT_ID = "-1003628736585"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 EXCEL_FILE = 'dice_jobs_list.xlsx'
 resume_path = "Dinesh_Go_Resume.docx" 
 
@@ -134,7 +162,7 @@ def send_telegram_message(message, max_retries=3):
     payload = {
         "chat_id": CHAT_ID,
         "text": message,
-        "parse_mode": "Markdown"
+        "parse_mode": "HTML"
     }
     
     for attempt in range(max_retries):
@@ -195,16 +223,20 @@ def end_msg_jobs_telegram(new_job_count):
 
 def send_jobs_to_telegram(df):
     for idx, row in df.iterrows():
+        sent_status = row['Email_Sent']
+        status_icon = "✅" if sent_status == "Y" else "❌" if sent_status == "N" else "⏳"
         message = (
-            f"*{row['Title']}*\n"
+            f"<b>{row['Title']}</b>\n"
             f"🏢 {row['Company'] or 'Unknown Company'}\n"
             f"📍 {row['Location'] or 'Location not listed'}\n"
             f"📝 Employment: {row['Employment_Type'] or 'N/A'}\n"
-            f"📧 Email: {row['Email'] or 'N/A'}\n"
             f"💰 Salary: {row['Salary'] or 'N/A'}\n"
-            f"💰 ATS Score : {row['ATS_Score'] or 'N/A'}\n"
-            f"💰 Badges: {row['Badges'] or 'N/A'}\n"
-            f"🔗 [Apply here]({row['URL']})"
+            f"📊 ATS Score: {row['ATS_Score'] or 'N/A'}\n"
+            f"🏷️ Badges: {row['Badges'] or 'N/A'}\n"
+            f"📧 Email: {row['Email'] or 'N/A'}\n"
+            f"{status_icon} Email Sent: {row['Email_Sent'] or 'N/A'}\n"
+            f"⚠️ Remarks: {row['Email_Not_Sent_Reason'] or 'N/A'}\n"
+            f'🔗 <a href="{row["URL"]}">Apply Now</a>'
         )
         
         if send_telegram_message(message):
@@ -413,14 +445,119 @@ def extract_email_from_page(url: str) -> str:
                 continue
             filtered.add(email)
 
-        return ", ".join(sorted(filtered)) if filtered else "N/D"
+        return ", ".join(sorted(filtered)) if filtered else "N/A"
 
     except Exception as e:
         print(f"⚠️  Email extraction failed for {url}: {e}")
-        return "N/D"
+        return "N/A"
+    
+# ─────────────────────────────────────────────────────────────────
+# GMAIL AUTH
+# ─────────────────────────────────────────────────────────────────
+def get_gmail_service():
+    """
+    Authenticates via OAuth2 and returns an authenticated Gmail service.
+    On first run it opens a browser window for you to approve access.
+    After that, the token is cached in token.json.
+    """
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open(TOKEN_FILE, "w") as token:
+            token.write(creds.to_json())
+
+    return build("gmail", "v1", credentials=creds)
+
+# ─────────────────────────────────────────────────────────────────
+# EMAIL BUILDER — template with dynamic Job Title
+# ─────────────────────────────────────────────────────────────────
+def build_email_body(job_title: str) -> str:
+    """
+    Returns the email body with the fetched job title inserted dynamically.
+    Falls back to 'Software Developer' if no title is available.
+    """
+    title = job_title.strip() if job_title else "Golang Developer"
+
+    body = f"""
+        <html>
+          <body style="font-family: Verdana, sans-serif; font-size: 12px; color: #333333;">
+            <p>Hi, Greetings of the day.<br>
+            I hope you are doing well.</p>
+            <p>I came across the <strong>{title}</strong> position you posted on Dice, and I wanted to let you know that I'm interested. I have 7 years of professional experience in software development, specializing in Golang-based backend systems, microservices architecture, and distributed cloud-native applications.</p>
+            <p>In my recent roles at Midwest Good Inc. and Optum, I've designed and deployed scalable Golang services on AWS, integrated LangChain/OpenAI APIs for predictive automation, and implemented CI/CD pipelines using GitHub Actions and Jenkins.</p>
+            <p>I've attached my resume for your review and would appreciate the opportunity to discuss how my experience aligns with your current opening.</p>
+            <p>--<br>
+            Best Regards,<br>
+            <strong>{SENDER_NAME}</strong><br>
+            {SENDER_PHONE}<br>
+            {SENDER_EMAIL}<br>
+            {SENDER_CITY}</p>
+          </body>
+        </html>
+        """
+    return body
+
+# ─────────────────────────────────────────────────────────────────
+# SEND EMAIL VIA GMAIL API
+# ─────────────────────────────────────────────────────────────────
+def send_email_via_gmail(service, to_email: str, job_title: str, resume_path: str) -> bool:
+    """
+    Composes and sends an email with the resume attached using Gmail API.
+    Returns True on success, False on failure.
+    """
+    try:
+        title   = job_title.strip() if job_title else "Golang Developer"
+        subject = f"Interested in {title} Position"
+        body    = build_email_body(title)
+
+        # Build MIME message
+        msg = MIMEMultipart()
+        msg["From"]    = f"{SENDER_NAME} <{SENDER_EMAIL}>"
+        # msg["To"]      = to_email
+        # msg["Cc"]      = 'charan@symploreus.com'
+        msg["To"]      = "dkolla1997@gmail.com"
+        msg["Cc"]      = "kolladinesh26@gmail.com"
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "html"))
+
+        # Attach resume if file exists
+        if resume_path and os.path.exists(resume_path):
+            with open(resume_path, "rb") as f:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(f.read())
+                encoders.encode_base64(part)
+                filename = os.path.basename(resume_path)
+                part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+                msg.attach(part)
+            print(f"   📎 Resume attached: {filename}")
+        else:
+            print(f"   ⚠️  Resume not found at '{resume_path}' — sending without attachment.")
+
+        # Encode and send
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+        print(f"   ✅ Email sent to: {to_email} | Subject: {subject}")
+        return True
+
+    except Exception as e:
+        print(f"   ❌ Failed to send email to {to_email}: {e}")
+        return False
 
 def main():
     resume_content = read_word_resume(resume_path)
+    
+    # Authenticate Gmail once — reused for all emails in this run
+    print("🔐 Authenticating Gmail...")
+    gmail_service = get_gmail_service()
+    print("✅ Gmail authenticated.\n")
+
     df_scraped = fetch_all_links(DICE_URL)
     df_scraped = df_scraped.drop_duplicates(subset=['URL'], keep='first')
 
@@ -434,6 +571,8 @@ def main():
     df_new['ATS_Score'] = None
     df_new['Badges'] = None
     df_new['Email']     = None
+    df_new["Email_Sent"]   = None
+    df_new["Email_Not_Sent_Reason"] = None
 
     if df_new.empty:
         print("No jobs found during scraping.")
@@ -445,13 +584,41 @@ def main():
         df_new.at[index, 'ATS_Score'] = str(score)
         email = extract_email_from_page(row['URL'])
         df_new.at[index, 'Email'] = email
+
         if JD_data:
+            job_title = JD_data.get("Title", "")
             score = ATS_cal(resume_content, JD_data)
             df_new.at[index, 'ATS_Score'] = f"{score}%"
             df_new.at[index, 'Company']   = JD_data.get('Company', "")
             df_new.at[index, 'Badges']    = JD_data.get('Badges', "")
             df_new.at[index, 'Title']     = JD_data.get('Title', "")
             df_new.at[index, 'Job_JD']    = str(JD_data.get('Full_Text', ""))
+        
+        # ── 3. Send email if address was found ──────────────────
+        score_value = float(str(score).replace('%', ''))
+        if score and score_value >= 45:  # Only attempt to send if ATS score is 45% or higher
+            if email and email != "N/A":
+                # Handle multiple comma-separated emails on one listing
+                for single_email in [e.strip() for e in email.split(",")]:
+                    sent = send_email_via_gmail(
+                        service     = gmail_service,
+                        to_email    = single_email,
+                        job_title   = job_title,
+                        resume_path = RESUME_PATH,
+                    )
+                    df_new.at[index, "Email_Sent"] = "Y" if sent else "N"
+                    if not sent:
+                        df_new.at[index, "Email_Not_Sent_Reason"] = "Gmail API error"
+                    else:
+                        df_new.at[index, "Email_Not_Sent_Reason"] = "Sent successfully"
+            else:
+                df_new.at[index, "Email_Sent"] = "N/A"
+                df_new.at[index, "Email_Not_Sent_Reason"] = "No email"
+                print("   ⏭️  No email found — skipping send.")
+        else:
+            df_new.at[index, "Email_Sent"] = "N/A"
+            df_new.at[index, "Email_Not_Sent_Reason"] = "Less ATS score"
+
     if save_to_excel(df_new, df_existing):
         print(f"💾 Successfully saved to {EXCEL_FILE}")
     print(f"📤 Sending {len(df_new)} new jobs to Telegram...")
