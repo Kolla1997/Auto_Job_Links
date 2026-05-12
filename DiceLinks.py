@@ -454,10 +454,9 @@ def main():
     if save_to_excel(df_new, df_existing):
         print(f"💾 Successfully saved to {EXCEL_FILE}")
     print(f"📤 Sending {len(df_new)} new jobs to Telegram...")
-    # send_jobs_to_telegram(df_new)
-    # time.sleep(2)
-    # end_msg_jobs_telegram(len(df_new))
-    print(df_new.head(2))
+    send_jobs_to_telegram(df_new)
+    time.sleep(2)
+    end_msg_jobs_telegram(len(df_new))
 
 if __name__ == "__main__":
     main()
