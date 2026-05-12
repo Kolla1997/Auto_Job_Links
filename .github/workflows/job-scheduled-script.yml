@@ -2,7 +2,8 @@ name: Auto Update Dice Jobs Excel
 
 on:
   schedule:
-    - cron: "*/27 * * * *" # runs for every 27 mins
+    - cron: "*/27 * * * *"
+
   workflow_dispatch:
 
 concurrency:
@@ -29,10 +30,23 @@ jobs:
 
       - name: Install dependencies
         run: |
-              pip install --upgrade pip
-              pip install -r requirements.txt
-              
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # CREATE credentials.json
+      - name: Create credentials.json
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+
+      # CREATE token.json
+      - name: Create token.json
+        run: |
+          echo '${{ secrets.GOOGLE_TOKEN }}' > token.json
+
       - name: Run Python Script
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           python DiceLinks.py
 
@@ -45,11 +59,6 @@ jobs:
 
           git commit -m "Auto-update: dice_jobs_list.xlsx - $(date -u +"%Y-%m-%d %H:%M:%S UTC")" || echo "No changes to commit"
 
-          # Fetch latest changes from remote
-          git fetch origin main
+          git pull --rebase origin main
 
-          # Rebase local changes on top of remote main
-          git rebase origin/main
-
-          # Push updated branch
           git push origin main
