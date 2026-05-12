@@ -14,7 +14,7 @@ import pytz
 cst = pytz.timezone('America/Chicago')
 
 DICE_URL = "https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS%7CTHIRD_PARTY&countryCode=US&latitude=38.7945952&location=United+States&locationPrecision=Country&longitude=-106.5348379&q=Golang"
-TELEGRAM_BOT_TOKEN = "8503178182:AAG2euQgRP2DkaDDPD_rrM9tLyZynshtHn8"
+TELEGRAM_BOT_TOKEN = "8637691669:AAHJftSMu1nBloFhvyuwU1SwycsvJJQKJ98"
 CHAT_ID = "-1003628736585"
 EXCEL_FILE = 'dice_jobs_list.xlsx'
 resume_path = "Dinesh_Go_Resume.docx" 
@@ -372,6 +372,52 @@ def ATS_cal(resume_content,JD_data):
     match_score = calculate_ats_score(resume_content, jd_keywords)
     return f"{match_score}%"
 
+
+def extract_email_from_page(url: str) -> str:
+    """
+    Fetches the raw HTML of a job page and extracts any email addresses.
+    Returns a comma-separated string of unique emails, or 'N/D' if none found.
+    """
+    HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+    EMAIL_REGEX = r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
+    
+    # Domains/patterns that are almost always false positives
+    EXCLUDED_PATTERNS = {
+        "sentry", "example", "domain", "email", "user", "test",
+        "noreply", "no-reply", "placeholder"
+    }
+    EXCLUDED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "svg", "webp", "woff", "woff2", "css", "js"}
+
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        raw_html = response.text
+
+        raw_emails = re.findall(EMAIL_REGEX, raw_html)
+
+        filtered = set()
+        for email in raw_emails:
+            ext = email.split(".")[-1].lower()
+            lower = email.lower()
+            if ext in EXCLUDED_EXTENSIONS:
+                continue
+            if any(pat in lower for pat in EXCLUDED_PATTERNS):
+                continue
+            filtered.add(email)
+
+        return ", ".join(sorted(filtered)) if filtered else "N/D"
+
+    except Exception as e:
+        print(f"⚠️  Email extraction failed for {url}: {e}")
+        return "N/D"
+
 def main():
     resume_content = read_word_resume(resume_path)
     df_scraped = fetch_all_links(DICE_URL)
@@ -386,6 +432,7 @@ def main():
     df_new['Job_JD'] = None
     df_new['ATS_Score'] = None
     df_new['Badges'] = None
+    df_new['Email']     = None
 
     if df_new.empty:
         print("No jobs found during scraping.")
@@ -395,6 +442,8 @@ def main():
         JD_data = fetch_job_details(row['URL'])
         score = ATS_cal(resume_content,JD_data)
         df_new.at[index, 'ATS_Score'] = str(score)
+        email = extract_email_from_page(row['URL'])
+        df_new.at[index, 'Email'] = email
         if JD_data:
             score = ATS_cal(resume_content, JD_data)
             df_new.at[index, 'ATS_Score'] = f"{score}%"
@@ -405,9 +454,10 @@ def main():
     if save_to_excel(df_new, df_existing):
         print(f"💾 Successfully saved to {EXCEL_FILE}")
     print(f"📤 Sending {len(df_new)} new jobs to Telegram...")
-    send_jobs_to_telegram(df_new)
-    time.sleep(2)
-    end_msg_jobs_telegram(len(df_new))
+    # send_jobs_to_telegram(df_new)
+    # time.sleep(2)
+    # end_msg_jobs_telegram(len(df_new))
+    print(df_new.head(2))
 
 if __name__ == "__main__":
     main()
