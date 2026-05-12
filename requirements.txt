@@ -1,8 +1,5 @@
-# Change these lines:
-ipykernel>=6.0.0
-ipython>=8.12.0
-
-# Add/Ensure these are present for your code:
+ipykernel==6.0.0
+ipython==8.12.0
 python-docx
 pandas
 scikit-learn
@@ -12,4 +9,4 @@ openpyxl
 pytz
 google-auth
 google-auth-oauthlib
-google-api-python-client 
+google-api-python-client
