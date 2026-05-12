@@ -200,6 +200,7 @@ def send_jobs_to_telegram(df):
             f"🏢 {row['Company'] or 'Unknown Company'}\n"
             f"📍 {row['Location'] or 'Location not listed'}\n"
             f"📝 Employment: {row['Employment_Type'] or 'N/A'}\n"
+            f"📧 Email: {row['Email'] or 'N/A'}\n"
             f"💰 Salary: {row['Salary'] or 'N/A'}\n"
             f"💰 ATS Score : {row['ATS_Score'] or 'N/A'}\n"
             f"💰 Badges: {row['Badges'] or 'N/A'}\n"
