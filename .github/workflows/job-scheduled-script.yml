@@ -29,8 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests pandas beautifulsoup4 python-docx scikit-learn openpyxl lxml
-
+              pip install --upgrade pip
+              pip install -r requirements.txt
+              
       - name: Run Python Script
         run: |
           python DiceLinks.py
