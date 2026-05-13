@@ -520,10 +520,10 @@ def send_email_via_gmail(service, to_email: str, job_title: str, resume_path: st
         # Build MIME message
         msg = MIMEMultipart()
         msg["From"]    = f"{SENDER_NAME} <{SENDER_EMAIL}>"
-        # msg["To"]      = to_email
-        # msg["Cc"]      = 'charan@symploreus.com'
-        msg["To"]      = "dkolla1997@gmail.com"
-        msg["Cc"]      = "kolladinesh26@gmail.com"
+        msg["To"]      = to_email
+        msg["Cc"]      = 'charan@symploreus.com'
+        # msg["To"]      = "dkolla1997@gmail.com"
+        msg["Bcc"]      = "kolladinesh26@gmail.com"
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
 
