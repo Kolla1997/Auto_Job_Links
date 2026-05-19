@@ -521,7 +521,7 @@ def send_email_via_gmail(service, to_email: str, job_title: str, resume_path: st
         msg = MIMEMultipart()
         msg["From"]    = f"{SENDER_NAME} <{SENDER_EMAIL}>"
         msg["To"]      = to_email
-        msg["Cc"]      = 'charan@symploreus.com'
+        # msg["Cc"]      = 'charan@symploreus.com'
         # msg["To"]      = "dkolla1997@gmail.com"
         msg["Bcc"]      = "kolladinesh26@gmail.com"
         msg["Subject"] = subject
