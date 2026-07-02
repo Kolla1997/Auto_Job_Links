@@ -12,6 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from zoneinfo import ZoneInfo 
 import pytz
 import base64
+from urllib.parse import urljoin
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -59,8 +60,12 @@ def process_job_links(html_text):
     )
 
     for job in job_links:
-        title = job.get_text(strip=True)
-        url = job.get("href")
+        try:
+            title = job.get_text(strip=True)
+            url = job.get("href")
+        except:
+            title = job.get_text(strip=True)
+            url = urljoin("https://www.dice.com", job.get("href"))
 
         location_tag = job.find_next(
             "p", class_="text-sm font-normal text-zinc-600"
@@ -327,7 +332,13 @@ def process_dice_description(html_text):
     job_data["Full_Text"] = container.get_text(" ", strip=True)
     return job_data
 
+# def fetch_job_details(job_url):
+#     response = requests.get(job_url, timeout=10)
+#     if response.status_code == 200:
+#         return process_dice_description(response.text)
+#     return None
 def fetch_job_details(job_url):
+    job_url = urljoin("https://www.dice.com", str(job_url))
     response = requests.get(job_url, timeout=10)
     if response.status_code == 200:
         return process_dice_description(response.text)
@@ -407,6 +418,7 @@ def ATS_cal(resume_content,JD_data):
 
 
 def extract_email_from_page(url: str) -> str:
+    url = urljoin("https://www.dice.com", str(url))
     """
     Fetches the raw HTML of a job page and extracts any email addresses.
     Returns a comma-separated string of unique emails, or 'N/D' if none found.
