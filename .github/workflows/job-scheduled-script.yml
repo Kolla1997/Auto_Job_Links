@@ -3,6 +3,15 @@ on:
   schedule:
     - cron: "*/27 * * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: true
+        default: 'run'
+        type: choice
+        options:
+          - run
+          - test
 concurrency:
   group: auto-job-update
   cancel-in-progress: false
@@ -16,34 +25,28 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install google-auth google-auth-oauthlib google-api-python-client
           pip list | grep -i google
-
       - name: Create credentials.json
         run: |
           echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-
       - name: Create token.json
         run: |
           echo '${{ secrets.GOOGLE_TOKEN }}' > token.json
-
       - name: Run Python Script
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
-          python DiceLinks.py
-
+          python DiceLinks.py ${{ github.event.inputs.mode || 'run' }}
       - name: Commit and Push Changes
         run: |
           git config --local user.name "github-actions[bot]"
