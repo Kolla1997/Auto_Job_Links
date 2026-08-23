@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 import pytz
 import base64
 from urllib.parse import urljoin
-
+from urllib.parse import urljoin, urlsplit, urlunsplit
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -50,6 +50,14 @@ resume_path = "Dinesh_Go_Resume.docx"
 
 TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
+def clean_dice_url(href):
+    if not href:
+        return None
+    full = urljoin("https://www.dice.com", href)
+    parts = urlsplit(full)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+
 def process_job_links(html_text):
     soup = BeautifulSoup(html_text, "html.parser")
     jobs_data = []
@@ -60,12 +68,8 @@ def process_job_links(html_text):
     )
 
     for job in job_links:
-        try:
-            title = job.get_text(strip=True)
-            url = job.get("href")
-        except:
-            title = job.get_text(strip=True)
-            url = urljoin("https://www.dice.com", job.get("href"))
+        title = job.get_text(strip=True)
+        url = clean_dice_url(job.get("href"))
 
         location_tag = job.find_next(
             "p", class_="text-sm font-normal text-zinc-600"
@@ -225,11 +229,18 @@ def end_msg_jobs_telegram(new_job_count):
     else:
         logging.error("Failed to send completion message after retries")
 
-
 def send_jobs_to_telegram(df):
     for idx, row in df.iterrows():
         sent_status = row['Email_Sent']
         status_icon = "✅" if sent_status == "Y" else "❌" if sent_status == "N" else "⏳"
+
+        # Safety net: ensure URL is always a clean, valid absolute link
+        raw_url = str(row["URL"]) if row["URL"] else ""
+        if raw_url.startswith("http"):
+            safe_url = raw_url.split("?")[0]  # strip any query string just in case
+        else:
+            safe_url = "https://www.dice.com" + raw_url if raw_url.startswith("/") else "https://www.dice.com"
+
         message = (
             f"<b>{row['Title']}</b>\n"
             f"🏢 {row['Company'] or 'Unknown Company'}\n"
@@ -241,15 +252,14 @@ def send_jobs_to_telegram(df):
             f"📧 Email: {row['Email'] or 'N/A'}\n"
             f"{status_icon} Email Sent: {row['Email_Sent'] or 'N/A'}\n"
             f"⚠️ Remarks: {row['Email_Not_Sent_Reason'] or 'N/A'}\n"
-            f'🔗 <a href="{row["URL"]}">Apply Now</a>'
+            f'🔗 <a href="{safe_url}">Apply Now</a>'
         )
-        
+
         if send_telegram_message(message):
             logging.info(f"Sent job {idx + 1}/{len(df)} to Telegram: {row['Title']}")
         else:
             logging.error(f"Failed to send job: {row['Title']}")
-        
-        # Wait between messages to respect rate limits
+
         time.sleep(1)
 
 def process_dice_description(html_text):
