@@ -648,5 +648,80 @@ def main():
     time.sleep(2)
     end_msg_jobs_telegram(len(df_new))
 
+def test_telegram_with_sample_data():
+    """
+    Sends sample job rows through the REAL send_jobs_to_telegram() function
+    to verify Telegram link rendering end-to-end. Covers the edge cases:
+    - relative URL (old bug)
+    - full URL with query string (old bug)
+    - already-clean URL
+    - missing/None fields
+    """
+    test_data = pd.DataFrame([
+        {
+            "Title": "TEST 1 - Relative URL",
+            "URL": "/job-detail/1334f629-d0a0-42f6-b19c-c7fc8f41fe4c",
+            "Location": "Las Vegas, Nevada",
+            "Employment_Type": "Contract",
+            "Salary": "Depends on Experience",
+            "Company": "Test Company A",
+            "ATS_Score": "72.19%",
+            "Badges": "N/A",
+            "Email": "test1@example.com",
+            "Email_Sent": "N/A",
+            "Email_Not_Sent_Reason": "Less ATS score",
+        },
+        {
+            "Title": "TEST 2 - Full URL with query string",
+            "URL": "https://www.dice.com/job-detail/d14c7259-0d50-424b-871e-945e219f7808?filters.employmentType=CONTRACTS%7CTHIRD_PARTY&filters.postedDate=ONE&page=1",
+            "Location": "Plano, Texas",
+            "Employment_Type": "Contract",
+            "Salary": "Depends on Experience",
+            "Company": "Test Company B",
+            "ATS_Score": "72.57%",
+            "Badges": "N/A",
+            "Email": "test2@example.com",
+            "Email_Sent": "Y",
+            "Email_Not_Sent_Reason": "Sent successfully",
+        },
+        {
+            "Title": "TEST 3 - Already clean URL",
+            "URL": "https://www.dice.com/job-detail/d15fe3e2-34c8-4153-b019-9a89f3ea848d",
+            "Location": "Remote",
+            "Employment_Type": "Third Party, Contract",
+            "Salary": "Depends on Experience",
+            "Company": "Test Company C",
+            "ATS_Score": "71.80%",
+            "Badges": "N/A",
+            "Email": "test3@example.com",
+            "Email_Sent": "N/A",
+            "Email_Not_Sent_Reason": "No email",
+        },
+        {
+            "Title": "TEST 4 - Missing/None fields",
+            "URL": "https://www.dice.com/job-detail/fd25bc6e-a36d-41b8-9eb3-d5825ce4d8c8",
+            "Location": None,
+            "Employment_Type": None,
+            "Salary": None,
+            "Company": None,
+            "ATS_Score": None,
+            "Badges": None,
+            "Email": None,
+            "Email_Sent": None,
+            "Email_Not_Sent_Reason": None,
+        },
+    ])
+
+    print(f"📤 Sending {len(test_data)} TEST messages to Telegram...")
+    send_jobs_to_telegram(test_data)
+    print("✅ Test complete. Check your Telegram chat for 4 messages.")
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        test_telegram_with_sample_data()
+    else:
+        main()
+
+# if __name__ == "__main__":
+#     main()
